@@ -28,25 +28,29 @@ Layers <- Table_Layers %>%
 
 Poliogono <- getData(name = "GADM", country = "GRL", level =0)
 
-STACK <- list()
-for(j in 1:nrow(Layers[[i]])){
-  download.file(Layers[[i]]$Link[j], destfile = paste0("Temp", Layers[[i]]$Bio[j], ".tif"))
-  STACK[[j]] <- raster(paste0("Temp", Layers[[i]]$Bio[j], ".tif")) %>%
-  crop(Poliogono) %>% magrittr::set_names(paste0("bio", Layers[[i]]$Bio[j]))
-  message(paste(j, "of", 19))
+for(i in i:length(Layers)){
+  STACK <- list()
+  for(j in 1:nrow(Layers[[i]])){
+    download.file(Layers[[i]]$Link[j], destfile = paste0("Temp", Layers[[i]]$Bio[j], ".tif"))
+    STACK[[j]] <- raster(paste0("Temp", Layers[[i]]$Bio[j], ".tif")) %>%
+      crop(Poliogono) %>% magrittr::set_names(paste0("bio", Layers[[i]]$Bio[j]))
+    message(paste(j, "of", 19))
+  }
+  
+  Mask <- fasterize::fasterize(st_as_sf(Poliogono), STACK[[1]])
+  
+  STACK <- STACK %>% reduce(stack)
+  
+  STACK <- STACK*Mask
+  
+  writeRaster(STACK, paste(unique(Layers[[i]]$Model), unique(Layers[[i]]$RCP),".tif", sep = "_"), overwrite=TRUE)
+  
+  To_erase <- list.files(pattern = "Temp", full.names = T)
+  
+  file.remove(To_erase)
 }
 
-Mask <- fasterize::fasterize(st_as_sf(Poliogono), STACK[[1]])
 
-STACK <- STACK %>% reduce(stack)
-
-STACK <- STACK*Mask
-
-writeRaster(STACK, paste(unique(Layers[[i]]$Model), unique(Layers[[i]]$RCP),".tif", sep = "_"))
-
-To_erase <- list.files(pattern = "Temp", full.names = T)
-
-file.remove(To_erase)
 #Datos de GCMs
 
 table_GCMs <- read_csv("/home/derek/Documents/GCMCompareR2/data/GCMs_details.csv") %>% 
